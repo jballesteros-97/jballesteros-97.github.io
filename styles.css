@@ -1,0 +1,16 @@
+/* ...existing styles... */
+/* Configuración de Google Sheets */
+.sheets-config {
+    margin-top: 16px;
+}
+
+.sheets-input { 
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    margin-bottom: 8px;
+}
+/* ...existing styles... */
