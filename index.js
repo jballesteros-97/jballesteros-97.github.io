@@ -12,14 +12,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Cargar datos guardados
 function loadData() {
-    showLoading("Cargando datos...");
+    showLoading("Cargando datos..."); 
     
     // Cargar preguntas
     const savedQuestions = localStorage.getItem('questions');
     if (savedQuestions) {
         questions = JSON.parse(savedQuestions);
     } else {
-        questions = [];
+        questions = []; // Ensure questions is an array if nothing is in storage
     }
     
     // Cargar historial de tests
@@ -27,15 +27,7 @@ function loadData() {
     if (savedTests) {
         testsHistory = JSON.parse(savedTests);
     } else {
-        testsHistory = [];
-    }
-
-    // Cargar tests guardados
-    const savedTestsProgress = localStorage.getItem('savedTests');
-    if (savedTestsProgress) {
-        window.savedTests = JSON.parse(savedTestsProgress);
-    } else {
-        window.savedTests = [];
+        testsHistory = []; // Ensure testsHistory is an array
     }
     
     // Cargar preferencia de modo oscuro
@@ -123,6 +115,10 @@ function initEventListeners() {
         // Al terminar de ver los resultados, volver a la página de inicio de tests
         navigateTo('tests-page'); 
     });
+
+    // Retest options from results page
+    document.getElementById('retest-all-questions').addEventListener('click', retestAllQuestions);
+    document.getElementById('retest-incorrect-questions').addEventListener('click', retestIncorrectQuestions);
     
     // Slider de número de preguntas
     document.getElementById('questions-count-slider').addEventListener('input', function() {
@@ -134,37 +130,72 @@ function initEventListeners() {
         populateQuestionsList(e.target.value);
     });
 
-    // Guardar y cancelar test
-    document.getElementById('save-test').addEventListener('click', saveCurrentTest);
-    document.getElementById('cancel-test').addEventListener('click', confirmCancelTest);
+    // Setup listeners for the question edit modal
+    setupEditModalListeners(); // NEW: Call the function to set up modal listeners
 }
 
-// Guardar test actual
-function saveCurrentTest() {
-    if (!currentTest) return;
-    
-    const testToSave = {
-        id: Date.now(),
-        theme: currentTest.theme,
-        questions: currentTest.questions,
-        currentIndex: currentTest.currentIndex,
-        answers: currentTest.answers,
-        startTime: currentTest.startTime,
-        savedAt: new Date()
-    };
-    
-    window.savedTests.push(testToSave);
-    localStorage.setItem('savedTests', JSON.stringify(window.savedTests));
-    
-    alert('Test guardado correctamente');
-    navigateTo('tests-page');
-}
-
-// Confirmar cancelación de test
-function confirmCancelTest() {
-    if (confirm('¿Estás seguro de que quieres cancelar el test? Todo el progreso se perderá')) {
+// Retest the entire test again
+function retestAllQuestions() {
+    if (!currentTest || !currentTest.questions || currentTest.questions.length === 0) {
+        alert("No hay un test anterior para rehacer.");
         navigateTo('tests-page');
+        return;
     }
+    // Shuffle the questions again to make it a fresh test experience
+    const shuffledQuestions = [...currentTest.questions].sort(() => 0.5 - Math.random());
+    startTest(shuffledQuestions, currentTest.theme);
+}
+
+// Retest only the bad answered questions
+function retestIncorrectQuestions() {
+    if (!currentTest || !currentTest.answers || currentTest.answers.length === 0) {
+        alert("No hay preguntas falladas para repasar en el test anterior.");
+        navigateTo('tests-page');
+        return;
+    }
+
+    const incorrectQuestionIds = currentTest.answers
+        .filter(answer => !answer.isCorrect)
+        .map(answer => answer.questionId);
+    
+    if (incorrectQuestionIds.length === 0) {
+        alert("¡Felicidades! No hay preguntas falladas para repasar.");
+        navigateTo('tests-page');
+        return;
+    }
+
+    const questionsToRetest = currentTest.questions.filter(q => incorrectQuestionIds.includes(q.id));
+    
+    // Shuffle these specific questions for a fresh retest
+    const shuffledIncorrectQuestions = [...questionsToRetest].sort(() => 0.5 - Math.random());
+
+    // Use a generic theme name for retest of incorrect questions
+    const retestTheme = `Repaso de errores (${currentTest.theme})`;
+    startTest(shuffledIncorrectQuestions, retestTheme);
+}
+
+// Show/Hide Edit Question Modal
+function showEditQuestionModal() {
+    document.getElementById('edit-question-modal').classList.remove('hidden');
+}
+
+function hideEditQuestionModal() {
+    document.getElementById('edit-question-modal').classList.add('hidden');
+}
+
+// Attach event listeners for the edit modal buttons
+function setupEditModalListeners() {
+    document.getElementById('save-question-changes').addEventListener('click', saveQuestionChanges);
+    document.getElementById('cancel-edit-question').addEventListener('click', hideEditQuestionModal);
+    
+    // Add event listeners to option inputs to update correct answer dropdown dynamically
+    const optionInputs = ['edit-option-a', 'edit-option-b', 'edit-option-c', 'edit-option-d'];
+    optionInputs.forEach(input_id => {
+        const inputElement = document.getElementById(input_id);
+        if (inputElement) {
+            inputElement.addEventListener('input', updateCorrectAnswerOptions);
+        }
+    });
 }
 
 // Navegar entre páginas
@@ -440,39 +471,9 @@ function updateUI() {
     // Actualizar lista de tests recientes
     const recentTestsContainer = document.getElementById('recent-tests');
     if (!recentTestsContainer) return; // Defensive check
-    recentTestsContainer.innerHTML = '';
+    recentTestsContainer.innerHTML = ''; 
 
-    // Agregar tests guardados
-    if (window.savedTests.length > 0) {
-        const savedTestsTitle = document.createElement('h4');
-        savedTestsTitle.textContent = 'Tests Guardados';
-        savedTestsTitle.style.marginTop = '16px';
-        savedTestsTitle.style.marginBottom = '8px';
-        savedTestsTitle.style.color = 'var(--primary-color)';
-        recentTestsContainer.appendChild(savedTestsTitle);
-
-        window.savedTests.forEach(test => {
-            const testElement = document.createElement('div');
-            testElement.className = 'theme-item';
-            testElement.style.backgroundColor = '#e3f2fd';
-            testElement.style.cursor = 'pointer';
-            testElement.innerHTML = `
-                <span>${test.theme} (Guardado)</span>
-                <span>Pregunta ${test.currentIndex + 1}/${test.questions.length}</span>
-            `;
-            testElement.addEventListener('click', () => loadSavedTest(test.id));
-            recentTestsContainer.appendChild(testElement);
-        });
-    }
-    
     if (testsHistory.length > 0) {
-        const historyTitle = document.createElement('h4');
-        historyTitle.textContent = 'Historial de Tests';
-        if (window.savedTests.length > 0) historyTitle.style.marginTop = '16px';
-        historyTitle.style.marginBottom = '8px';
-        historyTitle.style.color = 'var(--primary-color)';
-        recentTestsContainer.appendChild(historyTitle);
-
         const lastTests = testsHistory.slice(-3).reverse();
         lastTests.forEach(test => {
             const correctAnswers = test.answers.filter(a => a.isCorrect).length;
@@ -487,38 +488,14 @@ function updateUI() {
             
             recentTestsContainer.appendChild(testElement);
         });
-    }
-    
-    if (testsHistory.length === 0 && window.savedTests.length === 0) {
+    } else {
         const noTestsMessage = document.createElement('p');
-        noTestsMessage.textContent = 'Aún no has realizado ningún test ni tienes tests guardados';
+        noTestsMessage.textContent = 'Aún no has realizado ningún test';
         recentTestsContainer.appendChild(noTestsMessage);
     }
     
     // Actualizar estadísticas
     updateStatistics();
-}
-
-// Cargar test guardado
-function loadSavedTest(testId) {
-    const test = window.savedTests.find(t => t.id === testId);
-    if (!test) return;
-    
-    currentTest = {
-        questions: test.questions,
-        currentIndex: test.currentIndex,
-        answers: test.answers,
-        theme: test.theme,
-        startTime: test.startTime,
-        endTime: null
-    };
-    
-    // Remover test guardado
-    window.savedTests = window.savedTests.filter(t => t.id !== testId);
-    localStorage.setItem('savedTests', JSON.stringify(window.savedTests));
-    
-    navigateTo('test-page');
-    showQuestion(test.currentIndex);
 }
 
 // Actualizar estadísticas
@@ -620,8 +597,8 @@ function populateQuestionsList(searchTerm = '') {
 
     filteredQuestions.forEach(question => {
         const questionCard = document.createElement('div');
-        questionCard.className = 'card';
-        
+        questionCard.className = 'card question-card-editable'; // Added class for styling
+
         let optionsHtml = '<ul style="list-style: none; padding-left: 0;">';
         question.options.forEach(option => {
             const isCorrect = option === question.correctAnswer;
@@ -631,12 +608,139 @@ function populateQuestionsList(searchTerm = '') {
         optionsHtml += '</ul>';
 
         questionCard.innerHTML = `
-            <p style="font-size: 14px; color: var(--primary-color); margin-bottom: 8px;"><strong>Tema: ${question.theme}</strong></p>
+            <div class="question-header">
+                <p style="font-size: 14px; color: var(--primary-color);"><strong>Tema: ${question.theme}</strong></p>
+                <span class="edit-icon" data-id="${question.id}" title="Editar pregunta">✏️</span>
+            </div>
             <p style="margin-bottom: 12px;">${question.question}</p>
             ${optionsHtml}
         `;
         container.appendChild(questionCard);
     });
+
+    // Add event listener for edit icons using delegation
+    container.querySelectorAll('.edit-icon').forEach(icon => {
+        icon.addEventListener('click', (e) => {
+            const questionId = e.target.dataset.id;
+            editQuestion(questionId);
+        });
+    });
+}
+
+// Function to populate and show the edit question modal
+function editQuestion(questionId) {
+    const questionToEdit = questions.find(q => q.id == questionId); // Use == for potential type coercion (e.g. string ID from dataset)
+    if (!questionToEdit) {
+        alert("Pregunta no encontrada para editar.");
+        return;
+    }
+
+    document.getElementById('edit-question-id').value = questionToEdit.id;
+    document.getElementById('edit-theme').value = questionToEdit.theme;
+    document.getElementById('edit-question-text').value = questionToEdit.question;
+
+    // Populate options
+    const optionInputs = ['edit-option-a', 'edit-option-b', 'edit-option-c', 'edit-option-d'];
+    questionToEdit.options.forEach((option, index) => {
+        if (optionInputs[index]) {
+            document.getElementById(optionInputs[index]).value = option;
+        }
+    });
+    // Clear any remaining option inputs if the question had fewer than 4 options
+    for (let i = questionToEdit.options.length; i < 4; i++) {
+        if (optionInputs[i]) {
+            document.getElementById(optionInputs[i]).value = '';
+        }
+    }
+
+    // Populate correct answer dropdown
+    const correctAnswerSelect = document.getElementById('edit-correct-answer');
+    correctAnswerSelect.innerHTML = '<option value="">Selecciona la correcta</option>'; // Clear existing options
+
+    // Call updateCorrectAnswerOptions to populate the select based on the current options
+    updateCorrectAnswerOptions();
+    
+    // Set the correct answer value after options are populated
+    correctAnswerSelect.value = questionToEdit.correctAnswer;
+
+    showEditQuestionModal();
+}
+
+// Function to dynamically update correct answer options based on what's in option inputs
+function updateCorrectAnswerOptions() {
+    const correctAnswerSelect = document.getElementById('edit-correct-answer');
+    const currentCorrectAnswer = correctAnswerSelect.value; // Keep track of currently selected correct answer
+
+    correctAnswerSelect.innerHTML = '<option value="">Selecciona la correcta</option>';
+
+    const optionInputs = ['edit-option-a', 'edit-option-b', 'edit-option-c', 'edit-option-d'];
+    let hasValidOptions = false;
+    optionInputs.forEach(input_id => {
+        const optionText = document.getElementById(input_id).value.trim();
+        if (optionText) {
+            hasValidOptions = true;
+            const optElement = document.createElement('option');
+            optElement.value = optionText;
+            optElement.textContent = optionText;
+            correctAnswerSelect.appendChild(optElement);
+        }
+    });
+
+    // Restore the previously selected correct answer if it's still a valid option
+    if (currentCorrectAnswer && correctAnswerSelect.querySelector(`option[value="${currentCorrectAnswer}"]`)) {
+        correctAnswerSelect.value = currentCorrectAnswer;
+    } else if (hasValidOptions) {
+        // If previous correct answer is no longer an option, try to select the first valid one
+        // Only if "Selecciona la correcta" is not the only option
+        if (correctAnswerSelect.options.length > 1) {
+             correctAnswerSelect.selectedIndex = 1; // Select the first actual option
+        }
+    } else {
+        correctAnswerSelect.value = ""; // No valid options, reset selection
+    }
+}
+
+// Function to save changes from the edit modal
+function saveQuestionChanges() {
+    const questionId = document.getElementById('edit-question-id').value;
+    const theme = document.getElementById('edit-theme').value.trim();
+    const questionText = document.getElementById('edit-question-text').value.trim();
+    const optionA = document.getElementById('edit-option-a').value.trim();
+    const optionB = document.getElementById('edit-option-b').value.trim();
+    const optionC = document.getElementById('edit-option-c').value.trim();
+    const optionD = document.getElementById('edit-option-d').value.trim();
+    const correctAnswer = document.getElementById('edit-correct-answer').value.trim();
+
+    if (!theme || !questionText || !optionA || !optionB || !correctAnswer) {
+        alert("Tema, pregunta, al menos dos opciones y la respuesta correcta son obligatorios.");
+        return;
+    }
+
+    const options = [optionA, optionB, optionC, optionD].filter(opt => opt); // Filter out empty options
+    if (options.length < 2) {
+        alert("Debe haber al menos dos opciones.");
+        return;
+    }
+    if (!options.includes(correctAnswer)) {
+        alert("La respuesta correcta debe ser una de las opciones proporcionadas.");
+        return;
+    }
+
+    const questionIndex = questions.findIndex(q => q.id == questionId);
+    if (questionIndex !== -1) {
+        questions[questionIndex].theme = theme;
+        questions[questionIndex].question = questionText;
+        questions[questionIndex].options = options;
+        questions[questionIndex].correctAnswer = correctAnswer;
+        
+        localStorage.setItem('questions', JSON.stringify(questions));
+        hideEditQuestionModal();
+        populateQuestionsList(); // Refresh the questions list
+        populateThemeList(); // Also update theme list in case a theme name changed or new themes appeared
+        alert("Pregunta actualizada correctamente.");
+    } else {
+        alert("Error: No se pudo encontrar la pregunta para actualizar.");
+    }
 }
 
 // Rellenar lista de temas
