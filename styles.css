@@ -1,4 +1,5 @@
 /* ...existing styles... */
+
 /* Configuración de Google Sheets */
 .sheets-config {
     margin-top: 16px;
@@ -13,4 +14,88 @@
     color: var(--text-color);
     margin-bottom: 8px;
 }
+
+/* Edit Icon */
+.question-card-editable {
+    position: relative;
+}
+
+.question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px; /* Adjust as needed */
+}
+
+.edit-icon {
+    cursor: pointer;
+    font-size: 1.2em;
+    color: var(--primary-color);
+    padding: 4px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.edit-icon:hover {
+    background-color: var(--secondary-color);
+}
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: var(--card-bg);
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px var(--shadow-color);
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh; /* Limit height to prevent overflow */
+    overflow-y: auto; /* Enable scrolling for long forms */
+    animation: fadeIn 0.3s ease-out;
+}
+
+.modal-content label {
+    display: block;
+    margin-top: 10px;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.modal-content .sheets-input {
+    margin-bottom: 10px;
+}
+
+.modal-content .btn {
+    margin-top: 15px;
+}
+
+.modal-content .btn-outline {
+    margin-top: 10px;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive adjustments for modal */
+@media (max-width: 450px) {
+    .modal-content {
+        width: 95%;
+        padding: 15px;
+    }
+}
+
 /* ...existing styles... */
