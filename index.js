@@ -201,7 +201,7 @@ function cancelTest() {
         // savedTestInProgress = null; // Removed, now handled by savedTests array
         navigateTo('tests-page');
         updateTestsPageUI(); // Update UI to hide resume option
-        alert("Test cancelado. No se ha guardado el progreso.");
+        //alert("Test cancelado. No se ha guardado el progreso.");
     }
 }
 
@@ -219,7 +219,7 @@ function resumeTest(testId) {
         navigateTo('test-page');
         showQuestion(currentTest.currentIndex);
         updateTestsPageUI(); // Update UI to reflect removal of this saved test
-        alert("Test reanudado.");
+        //alert("Test reanudado.");
     } else {
         alert("No se encontró el test guardado para continuar.");
         updateTestsPageUI(); // Ensure UI is updated if an error occurs or test is somehow missing
@@ -244,25 +244,45 @@ function deleteSavedTest(testId) {
 
 // Retest the entire test again
 function retestAllQuestions() {
-    if (!currentTest || !currentTest.questions || currentTest.questions.length === 0) {
+    if (testsHistory.length === 0) {
         alert("No hay un test anterior para rehacer.");
         navigateTo('tests-page');
         return;
     }
-    // Shuffle the questions again to make it a fresh test experience
-    const shuffledQuestions = [...currentTest.questions].sort(() => 0.5 - Math.random());
-    startTest(shuffledQuestions, currentTest.theme);
-}
 
-// Retest only the bad answered questions
-function retestIncorrectQuestions() {
-    if (!currentTest || !currentTest.answers || currentTest.answers.length === 0) {
-        alert("No hay preguntas falladas para repasar en el test anterior.");
+    const lastTest = testsHistory[testsHistory.length - 1]; // Get the last completed test
+    if (!lastTest || !lastTest.questions || lastTest.questions.length === 0) {
+        alert("No se pudo cargar las preguntas del test anterior para rehacer. (Es posible que el test se haya guardado con una versión anterior de la aplicación).");
         navigateTo('tests-page');
         return;
     }
 
-    const incorrectQuestionIds = currentTest.answers
+    // Shuffle the questions again to make it a fresh test experience
+    const shuffledQuestions = [...lastTest.questions].sort(() => 0.5 - Math.random());
+    startTest(shuffledQuestions, lastTest.theme);
+}
+
+// Retest only the bad answered questions
+function retestIncorrectQuestions() {
+    if (testsHistory.length === 0) {
+        alert("No hay un test anterior para repasar preguntas falladas.");
+        navigateTo('tests-page');
+        return;
+    }
+
+    const lastTest = testsHistory[testsHistory.length - 1]; // Get the last completed test
+    if (!lastTest || !lastTest.answers || lastTest.answers.length === 0) {
+        alert("No se encontraron respuestas en el test anterior para repasar.");
+        navigateTo('tests-page');
+        return;
+    }
+    if (!lastTest.questions || lastTest.questions.length === 0) {
+        alert("No se pudo cargar las preguntas del test anterior para repasar errores. (Es posible que el test se haya guardado con una versión anterior de la aplicación).");
+        navigateTo('tests-page');
+        return;
+    }
+
+    const incorrectQuestionIds = lastTest.answers
         .filter(answer => !answer.isCorrect)
         .map(answer => answer.questionId);
     
@@ -272,13 +292,13 @@ function retestIncorrectQuestions() {
         return;
     }
 
-    const questionsToRetest = currentTest.questions.filter(q => incorrectQuestionIds.includes(q.id));
+    const questionsToRetest = lastTest.questions.filter(q => incorrectQuestionIds.includes(q.id));
     
     // Shuffle these specific questions for a fresh retest
     const shuffledIncorrectQuestions = [...questionsToRetest].sort(() => 0.5 - Math.random());
 
     // Use a generic theme name for retest of incorrect questions
-    const retestTheme = `Repaso de errores (${currentTest.theme})`;
+    const retestTheme = `Repaso de errores (${lastTest.theme})`;
     startTest(shuffledIncorrectQuestions, retestTheme);
 }
 
@@ -1211,6 +1231,7 @@ function finishTest() {
     // Guardar el test en el historial
     testsHistory.push({
         theme: currentTest.theme,
+        questions: currentTest.questions, // Store the actual questions used in this test
         answers: currentTest.answers,
         startTime: currentTest.startTime,
         endTime: currentTest.endTime
@@ -1218,19 +1239,45 @@ function finishTest() {
     
     localStorage.setItem('testsHistory', JSON.stringify(testsHistory));
     
+    // Mostrar resultados
+    showResults();
+
     // Clear the current test and any saved single test in progress (now handled by savedTests array)
     currentTest = null;
     // localStorage.removeItem('savedTestInProgress'); // Removed: handled by savedTests array now
     // savedTestInProgress = null; // Removed: handled by savedTests array now
-
-    // Mostrar resultados
-    showResults();
 }
 
 // Mostrar resultados
 function showResults() {
-    const correctAnswers = currentTest.answers.filter(a => a.isCorrect).length;
-    const totalQuestions = currentTest.questions.length;
+    // Check if currentTest is null before accessing its properties
+    // This check is primarily for situations where finishTest might not have been called correctly,
+    // or if `currentTest` was manually cleared before results could be shown.
+    // However, for retest functionality, we now rely on `testsHistory`.
+    if (!currentTest) {
+        console.error("No hay un test en curso para mostrar resultados.");
+        // Attempt to load the last test from history for display if currentTest is null,
+        // to provide context for retest buttons, but not to set currentTest.
+        if (testsHistory.length > 0) {
+            // Temporarily use the last test for display, without setting currentTest
+            const lastCompletedTestForDisplay = testsHistory[testsHistory.length - 1];
+            displayResultSummary(lastCompletedTestForDisplay);
+            navigateTo('results-page');
+            return;
+        } else {
+            navigateTo('tests-page'); // Redirect to a safe page if no history
+            return;
+        }
+    }
+
+    displayResultSummary(currentTest);
+    navigateTo('results-page');
+}
+
+// Helper function to display results, used by showResults and potentially others
+function displayResultSummary(testData) {
+    const correctAnswers = testData.answers.filter(a => a.isCorrect).length;
+    const totalQuestions = testData.questions.length;
     const percentage = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
     
     document.getElementById('final-score').textContent = `${percentage}%`;
@@ -1239,7 +1286,7 @@ function showResults() {
     
     // Calcular resultados por tema
     const themeResults = {};
-    currentTest.answers.forEach(answer => {
+    testData.answers.forEach(answer => {
         if (!themeResults[answer.theme]) {
             themeResults[answer.theme] = { correct: 0, total: 0 };
         }
@@ -1266,6 +1313,4 @@ function showResults() {
         
         themeResultsContainer.appendChild(resultElement);
     });
-    
-    navigateTo('results-page');
 }
