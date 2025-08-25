@@ -288,7 +288,7 @@ function showEditQuestionModal() {
 }
 
 function hideEditQuestionModal() {
-    document.getElementById('edit-question_modal').classList.add('hidden');
+    document.getElementById('edit-question-modal').classList.add('hidden');
 }
 
 // Attach event listeners for the edit modal buttons
@@ -1269,4 +1269,3 @@ function showResults() {
     
     navigateTo('results-page');
 }
-
