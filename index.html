@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Test App - Google Sheets</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
         :root {
             --primary-color: #4a6bff;
@@ -555,6 +556,7 @@
                     <label for="excel-upload" class="btn btn-outline" style="width: 100%; margin-bottom: 8px;">Subir archivo Excel (.xlsx)</label>
                     <input type="file" id="excel-upload" accept=".xls,.xlsx" class="hidden">
                     <p id="file-info" style="margin-top: 8px; font-size: 14px; color: var(--text-color);">Ningún archivo seleccionado</p>
+                    <button class="btn" id="load-sample" style="margin-top: 16px;">Cargar datos de ejemplo</button>
                 </div>
                 <div id="load-status" style="margin-top: 8px; font-size: 14px; color: var(--primary-color);">
                     No hay preguntas cargadas.
@@ -582,10 +584,6 @@
                     <button class="btn btn-outline hidden" id="prev-question">Anterior</button>
                     <button class="btn" id="next-question">Siguiente</button>
                 </div>
-                <div class="test-navigation" style="margin-top: 8px;">
-                    <button class="btn btn-outline" id="save-test" style="width: 48%; background-color: #4caf50; border-color: #4caf50;">Guardar Test</button>
-                    <button class="btn btn-outline" id="cancel-test" style="width: 48%; background-color: #f44336; border-color: #f44336; color: white;">Cancelar Test</button>
-                </div>
             </div>
         </div>
 
@@ -604,6 +602,8 @@
                 </div>
             </div>
 
+            <button class="btn" id="retest-all-questions" style="margin-bottom: 8px;">Volver a realizar el test completo</button>
+            <button class="btn btn-outline" id="retest-incorrect-questions" style="margin-bottom: 8px;">Repasar preguntas falladas</button>
             <button class="btn" id="finish-test">Volver al inicio</button>
         </div>
 
@@ -619,21 +619,55 @@
     <!-- Barra de navegación inferior -->
     <div class="nav-bar">
         <a href="#" class="nav-item active" data-page="tests-page">
-            <span class="nav-icon">📝</span>
+            <i class="nav-icon fa-solid fa-clipboard-question"></i>
             <span>Tests</span>
         </a>
         <a href="#" class="nav-item" data-page="stats-page">
-            <span class="nav-icon">📊</span>
+            <i class="nav-icon fa-solid fa-chart-simple"></i>
             <span>Estadísticas</span>
         </a>
         <a href="#" class="nav-item" data-page="questions-list-page">
-            <span class="nav-icon">📚</span>
+            <i class="nav-icon fa-solid fa-book"></i>
             <span>Preguntas</span>
         </a>
         <a href="#" class="nav-item" data-page="user-page">
-            <span class="nav-icon">👤</span>
+            <i class="nav-icon fa-solid fa-user"></i>
             <span>Usuario</span>
         </a>
+    </div>
+
+    <!-- Página de Edición de Pregunta (Modal) -->
+    <div class="modal-overlay hidden" id="edit-question-modal">
+        <div class="modal-content card">
+            <h2>Editar Pregunta</h2>
+            <input type="hidden" id="edit-question-id">
+            <label for="edit-theme">Tema:</label>
+            <input type="text" id="edit-theme" class="sheets-input" required>
+            
+            <label for="edit-question-text">Pregunta:</label>
+            <textarea id="edit-question-text" class="sheets-input" rows="3" required></textarea>
+            
+            <label for="edit-option-a">Opción A:</label>
+            <input type="text" id="edit-option-a" class="sheets-input" required>
+            
+            <label for="edit-option-b">Opción B:</label>
+            <input type="text" id="edit-option-b" class="sheets-input" required>
+            
+            <label for="edit-option-c">Opción C:</label>
+            <input type="text" id="edit-option-c" class="sheets-input">
+            
+            <label for="edit-option-d">Opción D:</label>
+            <input type="text" id="edit-option-d" class="sheets-input">
+            
+            <label for="edit-correct-answer">Respuesta Correcta:</label>
+            <select id="edit-correct-answer" class="sheets-input" required>
+                <option value="">Selecciona la correcta</option>
+                <!-- Opciones se llenarán dinámicamente -->
+            </select>
+            
+            <button class="btn" id="save-question-changes">Guardar Cambios</button>
+            <button class="btn btn-outline" id="cancel-edit-question">Cancelar</button>
+        </div>
     </div>
 
     <script type="module" src="index.js"></script>
