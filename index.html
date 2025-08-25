@@ -356,6 +356,18 @@
             width: 48%;
         }
 
+        /* New styles for test control buttons */
+        .test-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 16px;
+        }
+        .test-controls .btn {
+            width: 100%;
+            margin-top: 0; /* Override default btn margin-top */
+        }
+
         /* Resultados del Test */
         .result-summary {
             text-align: center;
@@ -447,6 +459,13 @@
         <!-- Página de Dashboard/Tests -->
         <div class="page" id="tests-page">
             <h1>Realizar Test</h1>
+            
+            <!-- New: Test in Progress card -->
+            <div class="card hidden" id="test-in-progress-card">
+                <!-- Content will be dynamically loaded by updateTestsPageUI() -->
+                <div id="saved-tests-list"></div>
+            </div>
+
             <div class="card">
                 <h3>Selecciona el tipo de test</h3>
                 <div class="test-options">
@@ -583,10 +602,12 @@
                 <div class="test-navigation">
                     <button class="btn btn-outline hidden" id="prev-question">Anterior</button>
                     <button class="btn" id="next-question">Siguiente</button>
-                    <div class="test-navigation" style="margin-top: 8px;">
-                        <button class="btn btn-outline" id="save-test" style="width: 48%; background-color: #4caf50; border-color: #4caf50;">Guardar Test</button>
-                        <button class="btn btn-outline" id="cancel-test" style="width: 48%; background-color: #f44336; border-color: #f44336; color: white;">Cancelar Test</button>
-                    </div>
+                </div>
+
+                <!-- New: Test control buttons -->
+                <div class="test-controls">
+                    <button class="btn btn-outline" id="pause-test-btn">Guardar y Salir</button>
+                    <button class="btn btn-outline" id="cancel-test-btn">Cancelar Test</button>
                 </div>
             </div>
         </div>
@@ -677,4 +698,3 @@
     <script type="module" src="index.js"></script>
 </body>
 </html>
-
