@@ -1,6 +1,7 @@
 let questions = [];
 let testsHistory = [];
 let currentTest = null;
+let savedTests = []; // Changed from savedTestInProgress and now an array
 
 // Inicialización
 document.addEventListener('DOMContentLoaded', function() {
@@ -8,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initEventListeners(); // Set up all general event listeners
     navigateTo('tests-page'); // Navigate to the initial page
     updateUI(); // Update UI based on loaded data
+    updateTestsPageUI(); // Update specific UI for tests-page, including resume option
 });
 
 // Cargar datos guardados
@@ -23,11 +25,19 @@ function loadData() {
     }
     
     // Cargar historial de tests
-    const savedTests = localStorage.getItem('testsHistory');
-    if (savedTests) {
-        testsHistory = JSON.parse(savedTests);
+    const savedTestsHistory = localStorage.getItem('testsHistory'); // Renamed to avoid confusion with new savedTests
+    if (savedTestsHistory) {
+        testsHistory = JSON.parse(savedTestsHistory);
     } else {
         testsHistory = []; // Ensure testsHistory is an array
+    }
+
+    // Cargar tests guardados (plural)
+    const storedSavedTests = localStorage.getItem('savedTests'); // New key for the array
+    if (storedSavedTests) {
+        savedTests = JSON.parse(storedSavedTests);
+    } else {
+        savedTests = [];
     }
     
     // Cargar preferencia de modo oscuro
@@ -132,6 +142,104 @@ function initEventListeners() {
 
     // Setup listeners for the question edit modal
     setupEditModalListeners(); // NEW: Call the function to set up modal listeners
+
+    // New: Test control buttons (pause/cancel existing test)
+    document.getElementById('pause-test-btn').addEventListener('click', pauseTest);
+    document.getElementById('cancel-test-btn').addEventListener('click', cancelTest);
+
+    // New: Delegated listeners for dynamically generated saved test items
+    document.getElementById('test-in-progress-card').addEventListener('click', function(event) {
+        const target = event.target;
+        if (target.classList.contains('resume-saved-test-btn')) {
+            const testId = target.dataset.testId;
+            resumeTest(testId);
+        } else if (target.classList.contains('delete-saved-test-btn')) {
+            const testId = target.dataset.testId;
+            deleteSavedTest(testId);
+        }
+    });
+}
+
+// New: Pause test function
+function pauseTest() {
+    if (!currentTest) {
+        alert("No hay ningún test en curso para guardar.");
+        navigateTo('tests-page');
+        return;
+    }
+    
+    const newSavedTest = {
+        id: Date.now().toString(), // Unique ID for the saved test
+        savedAt: new Date().toISOString(), // Timestamp for oldest tracking
+        test: currentTest
+    };
+
+    let message = "";
+    if (savedTests.length < 3) {
+        savedTests.push(newSavedTest);
+        message = "Test guardado. Puedes continuarlo más tarde.";
+    } else {
+        // If 3 tests are already saved, replace the oldest one
+        savedTests.sort((a, b) => new Date(a.savedAt).getTime() - new Date(b.savedAt).getTime()); // Sort by oldest first
+        const oldestTestTheme = savedTests[0].test.theme;
+        savedTests[0] = newSavedTest; // Replace the oldest
+        message = `Has guardado 3 tests. Este test ha reemplazado al test de ${oldestTestTheme}. Puedes continuarlo más tarde.`;
+    }
+
+    localStorage.setItem('savedTests', JSON.stringify(savedTests)); // Use new key
+    currentTest = null; // Clear the active test
+    navigateTo('tests-page');
+    updateTestsPageUI(); // Update UI to show saved tests
+    alert(message);
+}
+
+// New: Cancel test function
+function cancelTest() {
+    if (confirm("¿Estás seguro de que quieres cancelar el test? Se perderá todo el progreso.")) {
+        currentTest = null;
+        // localStorage.removeItem('savedTestInProgress'); // Removed, now handled by savedTests array
+        // savedTestInProgress = null; // Removed, now handled by savedTests array
+        navigateTo('tests-page');
+        updateTestsPageUI(); // Update UI to hide resume option
+        alert("Test cancelado. No se ha guardado el progreso.");
+    }
+}
+
+// New: Resume test function
+function resumeTest(testId) {
+    const indexToResume = savedTests.findIndex(st => st.id === testId);
+    if (indexToResume !== -1) {
+        const testToResume = savedTests[indexToResume];
+        currentTest = testToResume.test; // Load the actual test data
+        
+        // Remove the test from the savedTests array after resuming
+        savedTests.splice(indexToResume, 1);
+        localStorage.setItem('savedTests', JSON.stringify(savedTests));
+        
+        navigateTo('test-page');
+        showQuestion(currentTest.currentIndex);
+        updateTestsPageUI(); // Update UI to reflect removal of this saved test
+        alert("Test reanudado.");
+    } else {
+        alert("No se encontró el test guardado para continuar.");
+        updateTestsPageUI(); // Ensure UI is updated if an error occurs or test is somehow missing
+    }
+}
+
+// New: Delete saved test function
+function deleteSavedTest(testId) {
+    if (confirm("¿Estás seguro de que quieres eliminar este test guardado? Se perderá todo el progreso guardado.")) {
+        const initialLength = savedTests.length;
+        savedTests = savedTests.filter(st => st.id !== testId);
+        
+        if (savedTests.length < initialLength) {
+            localStorage.setItem('savedTests', JSON.stringify(savedTests));
+            updateTestsPageUI(); // Hide the resume card
+            alert("Test guardado eliminado.");
+        } else {
+            alert("Error: No se encontró el test guardado para eliminar.");
+        }
+    }
 }
 
 // Retest the entire test again
@@ -180,7 +288,7 @@ function showEditQuestionModal() {
 }
 
 function hideEditQuestionModal() {
-    document.getElementById('edit-question-modal').classList.add('hidden');
+    document.getElementById('edit-question_modal').classList.add('hidden');
 }
 
 // Attach event listeners for the edit modal buttons
@@ -239,6 +347,9 @@ function navigateTo(pageId) {
             activeNavItem.classList.add('active');
         }
         updateUI(); // Llamar a updateUI solo para las páginas principales
+        if (pageId === 'tests-page') {
+            updateTestsPageUI(); // Ensure tests-page specific UI is updated
+        }
     }
 }
 
@@ -420,7 +531,7 @@ function loadSampleData() {
                 theme: "ATA27",
                 question: "¿Qué es un 'spoiler' en un ala?",
                 options: ["Un dispositivo para aumentar la sustentación", "Un dispositivo para reducir la sustentación y aumentar la resistencia", "Un componente estructural del ala", "Un tipo de luz de navegación"],
-                correctAnswer: "Un dispositivo para reducir la sustentación y aumentar la resistencia",
+                correctAnswer: "Un dispositivo para reducir la sustentación y la resistencia",
                 answeredCorrectly: 0,
                 answeredIncorrectly: 0
             },
@@ -466,7 +577,7 @@ function hideLoading() {
     navigateTo('tests-page');
 }
 
-// Actualizar UI
+// Actualizar UI (general for nav pages)
 function updateUI() {
     // Actualizar lista de tests recientes
     const recentTestsContainer = document.getElementById('recent-tests');
@@ -496,6 +607,43 @@ function updateUI() {
     
     // Actualizar estadísticas
     updateStatistics();
+}
+
+// New: Update Tests Page specific UI (resume card)
+function updateTestsPageUI() {
+    const testInProgressCard = document.getElementById('test-in-progress-card');
+    const savedTestsListContainer = document.getElementById('saved-tests-list'); // New container
+
+    if (!testInProgressCard || !savedTestsListContainer) return;
+
+    savedTestsListContainer.innerHTML = ''; // Clear existing content
+
+    if (savedTests.length > 0) {
+        testInProgressCard.classList.remove('hidden');
+        const header = document.createElement('h3');
+        header.textContent = `Tests guardados (${savedTests.length}/3)`;
+        savedTestsListContainer.appendChild(header);
+
+        savedTests.forEach(savedItem => {
+            const test = savedItem.test;
+            const progressPercentage = test.questions.length > 0 ? 
+                Math.round(((test.currentIndex + 1) / test.questions.length) * 100) : 0;
+
+            const savedTestElement = document.createElement('div');
+            savedTestElement.className = 'card saved-test-item'; // Add a class for potential styling
+            savedTestElement.innerHTML = `
+                <p><strong>Tema:</strong> ${test.theme || 'Aleatorio'}</p>
+                <p>Progreso: Pregunta ${test.currentIndex + 1} de ${test.questions.length} (${progressPercentage}%)</p>
+                <div class="test-controls" style="flex-direction: row; justify-content: flex-end; gap: 8px;">
+                    <button class="btn resume-saved-test-btn" data-test-id="${savedItem.id}" style="width: auto;">Continuar</button>
+                    <button class="btn btn-outline delete-saved-test-btn" data-test-id="${savedItem.id}" style="width: auto;">Eliminar</button>
+                </div>
+            `;
+            savedTestsListContainer.appendChild(savedTestElement);
+        });
+    } else {
+        testInProgressCard.classList.add('hidden');
+    }
 }
 
 // Actualizar estadísticas
@@ -610,7 +758,7 @@ function populateQuestionsList(searchTerm = '') {
         questionCard.innerHTML = `
             <div class="question-header">
                 <p style="font-size: 14px; color: var(--primary-color);"><strong>Tema: ${question.theme}</strong></p>
-                <span class="edit-icon" data-id="${question.id}" title="Editar pregunta">✏️</span>
+                <span class="edit-icon" data-id="${question.id}" title="Editar pregunta"><i class="fa-solid fa-pen-to-square"></i></span>
             </div>
             <p style="margin-bottom: 12px;">${question.question}</p>
             ${optionsHtml}
@@ -829,7 +977,7 @@ function startThemeTest() {
     const selectedThemes = [];
     document.querySelectorAll('#theme-list input[type="checkbox"]:checked').forEach(checkbox => {
         const theme = checkbox.dataset.theme;
-        if (theme) { // Make sure it's not the 'select-all' checkbox without a theme
+        if (theme && theme !== 'Todos') { // Exclude the 'Todos' checkbox itself, as its purpose is to check/uncheck others
             selectedThemes.push(theme);
         }
     });
@@ -840,7 +988,12 @@ function startThemeTest() {
     }
     
     let selectedQuestions;
-    if (selectedThemes.includes('Todos')) {
+    // If 'Todos' was checked, it means all individual themes were checked.
+    // So, if selectedThemes is empty but 'Todos' was conceptually selected,
+    // or if actual themes are selected, filter accordingly.
+    const allCheckboxChecked = document.getElementById('theme-check-all') && document.getElementById('theme-check-all').checked;
+
+    if (allCheckboxChecked) {
         selectedQuestions = [...questions];
     } else {
         selectedQuestions = questions.filter(q => selectedThemes.includes(q.theme));
@@ -859,6 +1012,17 @@ function startThemeTest() {
 
 // Iniciar test
 function startTest(selectedQuestions, theme) {
+    // If a test is in progress, ask the user what to do.
+    if (currentTest) {
+        if (!confirm("Ya tienes un test en curso. ¿Quieres empezar uno nuevo y descartar el actual?")) {
+            return; // User chose not to start a new test
+        }
+        // If they chose to start a new one, clear the old one
+        currentTest = null;
+        // localStorage.removeItem('savedTestInProgress'); // This was for a single saved test, now removed.
+        // savedTestInProgress = null; // This was for a single saved test, now removed.
+    }
+
     currentTest = {
         questions: selectedQuestions,
         currentIndex: 0,
@@ -874,7 +1038,7 @@ function startTest(selectedQuestions, theme) {
 
 // Mostrar pregunta
 function showQuestion(index) {
-    if (index < 0 || index >= currentTest.questions.length) return;
+    if (!currentTest || index < 0 || index >= currentTest.questions.length) return;
     
     currentTest.currentIndex = index;
     const question = currentTest.questions[index];
@@ -1054,6 +1218,11 @@ function finishTest() {
     
     localStorage.setItem('testsHistory', JSON.stringify(testsHistory));
     
+    // Clear the current test and any saved single test in progress (now handled by savedTests array)
+    currentTest = null;
+    // localStorage.removeItem('savedTestInProgress'); // Removed: handled by savedTests array now
+    // savedTestInProgress = null; // Removed: handled by savedTests array now
+
     // Mostrar resultados
     showResults();
 }
