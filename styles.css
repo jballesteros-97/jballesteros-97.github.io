@@ -1,5 +1,17 @@
 /* ...existing styles... */
 
+/* New styles for test control buttons */
+.test-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+}
+.test-controls .btn {
+    width: 100%;
+    margin-top: 0; /* Override default btn margin-top */
+}
+
 /* Configuración de Google Sheets */
 .sheets-config {
     margin-top: 16px;
@@ -98,4 +110,41 @@
     }
 }
 
-/* ...existing styles... */
+/* New styles for saved tests list */
+.saved-test-item {
+    margin-bottom: 12px;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--secondary-color);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.saved-test-item p {
+    margin-bottom: 0;
+}
+
+.saved-test-item .test-controls {
+    flex-direction: row; /* Override default column for these buttons */
+    justify-content: flex-end; /* Align buttons to the right */
+    margin-top: 8px;
+    gap: 8px;
+}
+
+.saved-test-item .test-controls .btn {
+    width: auto; /* Allow buttons to size based on content */
+    padding: 8px 12px;
+    font-size: 14px;
+}
+
+/* Ensure the H3 for saved tests also has some margin */
+#saved-tests-list h3 {
+    margin-bottom: 12px;
+    color: var(--text-color); /* Adjust color if needed */
+}
+
+#test-in-progress-card {
+    padding-bottom: 16px; /* Reset padding for the card containing saved tests */
+}
