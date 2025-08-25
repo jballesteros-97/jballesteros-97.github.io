@@ -769,7 +769,7 @@ function populateQuestionsList(searchTerm = '') {
     // Add event listener for edit icons using delegation
     container.querySelectorAll('.edit-icon').forEach(icon => {
         icon.addEventListener('click', (e) => {
-            const questionId = e.target.dataset.id;
+            const questionId = icon.dataset.id; // Fixed: Get data-id from the clicked icon element itself
             editQuestion(questionId);
         });
     });
@@ -1269,3 +1269,4 @@ function showResults() {
     
     navigateTo('results-page');
 }
+
