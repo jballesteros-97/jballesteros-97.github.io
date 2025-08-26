@@ -1128,8 +1128,10 @@ function selectOption(optionElement, question) {
     // Seleccionar esta opción
     optionElement.classList.add('selected');
     
-    // Determine if the selected option text matches the correct answer text
-    const selectedOptionText = optionElement.textContent.substring(3).trim(); // Remove "A. ", "B. ", etc.
+    // Get the option index to match with question.options array
+    const selectedOptionChar = optionElement.dataset.option;
+    const selectedOptionIndex = selectedOptionChar.charCodeAt(0) - 65; // Convert A,B,C,D to 0,1,2,3
+    const selectedOptionText = question.options[selectedOptionIndex]; // Get text directly from question.options
     const isCorrect = selectedOptionText === question.correctAnswer;
     
     // Apply correct/incorrect styling immediately
@@ -1139,7 +1141,8 @@ function selectOption(optionElement, question) {
         optionElement.classList.add('incorrect');
         // Also show the correct answer
         document.querySelectorAll('.options .option').forEach(opt => {
-            const optText = opt.textContent.substring(3).trim();
+            const optIndex = opt.dataset.option.charCodeAt(0) - 65;
+            const optText = question.options[optIndex];
             if (optText === question.correctAnswer) {
                 opt.classList.add('correct');
             }
