@@ -158,6 +158,10 @@ function initEventListeners() {
             deleteSavedTest(testId);
         }
     });
+    
+    // New: Statistics management
+    document.getElementById('download-stats-btn').addEventListener('click', downloadStatistics);
+    document.getElementById('upload-stats-input').addEventListener('change', uploadStatistics);
 }
 
 // New: Pause test function
@@ -366,7 +370,7 @@ function navigateTo(pageId) {
         if (activeNavItem) { 
             activeNavItem.classList.add('active');
         }
-        updateUI(); // Llamar a updateUI solo para las páginas principales
+        updateUI(); // Call updateUI only for main pages
         if (pageId === 'tests-page') {
             updateTestsPageUI(); // Ensure tests-page specific UI is updated
         }
@@ -1316,4 +1320,84 @@ function displayResultSummary(testData) {
         
         themeResultsContainer.appendChild(resultElement);
     });
+}
+
+// New: Download statistics function
+function downloadStatistics() {
+    if (testsHistory.length === 0) {
+        alert("No hay estadísticas para descargar.");
+        return;
+    }
+
+    try {
+        const dataStr = JSON.stringify(testsHistory, null, 2); // Pretty print JSON
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+        a.download = `testapp-stats-backup-${date}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+    } catch (error) {
+        console.error("Error al descargar estadísticas:", error);
+        alert("Ocurrió un error al intentar descargar las estadísticas.");
+    }
+}
+
+// New: Upload statistics function
+function uploadStatistics(event) {
+    const file = event.target.files[0];
+    if (!file) {
+        return; // No file selected
+    }
+
+    if (file.type !== 'application/json') {
+        alert("Por favor, selecciona un archivo .json válido.");
+        event.target.value = null; // Reset input
+        return;
+    }
+    
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+        try {
+            const loadedData = JSON.parse(e.target.result);
+            
+            // Basic validation
+            if (!Array.isArray(loadedData)) {
+                throw new Error("El archivo no contiene un array de estadísticas válido.");
+            }
+            
+            // More specific validation
+            if (loadedData.length > 0 && (!loadedData[0].hasOwnProperty('theme') || !loadedData[0].hasOwnProperty('answers'))) {
+                 throw new Error("El formato del archivo de estadísticas no es compatible.");
+            }
+
+            if (confirm("¿Estás seguro de que quieres reemplazar tus estadísticas actuales con las del archivo? Esta acción no se puede deshacer.")) {
+                testsHistory = loadedData;
+                localStorage.setItem('testsHistory', JSON.stringify(testsHistory));
+                updateUI(); // This will call updateStatistics()
+                alert("Estadísticas cargadas correctamente.");
+            }
+
+        } catch (error) {
+            console.error("Error al cargar estadísticas:", error);
+            alert(`Error al procesar el archivo: ${error.message}`);
+        } finally {
+            // Reset file input to allow uploading the same file again
+            event.target.value = null;
+        }
+    };
+    
+    reader.onerror = function() {
+        alert("Error al leer el archivo.");
+        event.target.value = null;
+    };
+    
+    reader.readAsText(file);
 }
