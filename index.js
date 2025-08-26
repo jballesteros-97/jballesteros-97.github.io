@@ -1323,7 +1323,7 @@ function displayResultSummary(testData) {
 }
 
 // New: Download statistics function
-function downloadStatistics() {
+async function downloadStatistics() {
     if (testsHistory.length === 0) {
         alert("No hay estadísticas para descargar.");
         return;
@@ -1332,16 +1332,43 @@ function downloadStatistics() {
     try {
         const dataStr = JSON.stringify(testsHistory, null, 2); // Pretty print JSON
         const dataBlob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(dataBlob);
-        
-        const a = document.createElement('a');
-        a.href = url;
         const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-        a.download = `testapp-stats-backup-${date}.json`;
+        const fileName = `testapp-stats-backup-${date}.json`;
+        const file = new File([dataBlob], fileName, { type: 'application/json' });
+
+        // Use Web Share API if available (better for mobile devices like Android)
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({
+                    files: [file],
+                    title: 'Copia de Estadísticas',
+                    text: `Estadísticas de TestApp del ${date}`
+                });
+                // Successfully shared, no need to proceed to fallback download.
+                return; 
+            } catch (error) {
+                // If the user cancels the share dialog, it's not an error, so we just stop.
+                if (error.name === 'AbortError') {
+                    return;
+                }
+                // For other errors, we can log them and proceed to the fallback method.
+                console.error("Error usando Web Share API:", error);
+            }
+        }
+
+        // Fallback for desktop browsers or if Web Share API fails
+        const a = document.createElement('a');
+        const url = URL.createObjectURL(dataBlob);
+        a.href = url;
+        a.download = fileName;
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        
+        // Cleanup the created object URL
+        setTimeout(() => {
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }, 100);
         
     } catch (error) {
         console.error("Error al descargar estadísticas:", error);
