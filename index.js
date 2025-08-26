@@ -1334,29 +1334,8 @@ async function downloadStatistics() {
         const dataBlob = new Blob([dataStr], { type: 'application/json' });
         const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
         const fileName = `testapp-stats-backup-${date}.json`;
-        const file = new File([dataBlob], fileName, { type: 'application/json' });
 
-        // Use Web Share API if available (better for mobile devices like Android)
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-            try {
-                await navigator.share({
-                    files: [file],
-                    title: 'Copia de Estadísticas',
-                    text: `Estadísticas de TestApp del ${date}`
-                });
-                // Successfully shared, no need to proceed to fallback download.
-                return; 
-            } catch (error) {
-                // If the user cancels the share dialog, it's not an error, so we just stop.
-                if (error.name === 'AbortError') {
-                    return;
-                }
-                // For other errors, we can log them and proceed to the fallback method.
-                console.error("Error usando Web Share API:", error);
-            }
-        }
-
-        // Fallback for desktop browsers or if Web Share API fails
+        // Use the reliable fallback method for all devices to directly download the file.
         const a = document.createElement('a');
         const url = URL.createObjectURL(dataBlob);
         a.href = url;
