@@ -672,6 +672,18 @@
         </a>
     </div>
 
+    <!-- Modal para copiar estadísticas en partes -->
+    <div class="modal-overlay hidden" id="copy-stats-modal">
+        <div class="modal-content card">
+            <h2>Copiar Estadísticas en Partes</h2>
+            <p>Tus estadísticas se han dividido. Copia cada parte por separado.</p>
+            <div id="copy-stats-chunks-container">
+                <!-- Chunks will be generated here by JS -->
+            </div>
+            <button class="btn btn-outline" id="close-copy-stats-modal" style="width: 100%;">Cerrar</button>
+        </div>
+    </div>
+
     <!-- Página de Edición de Pregunta (Modal) -->
     <div class="modal-overlay hidden" id="edit-question-modal">
         <div class="modal-content card">
