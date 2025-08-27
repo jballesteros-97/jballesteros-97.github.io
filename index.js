@@ -1454,7 +1454,7 @@ async function copyStatisticsToClipboard() {
         return;
     }
 
-    const totalChunks = 5;
+    const totalChunks = 10;
     const chunks = splitIntoChunks(testsHistory, totalChunks);
     const container = document.getElementById('copy-stats-chunks-container');
     container.innerHTML = '';
@@ -1503,3 +1503,4 @@ function splitIntoChunks(array, numChunks) {
 
     return result;
 }
+
