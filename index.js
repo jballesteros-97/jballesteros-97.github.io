@@ -163,6 +163,12 @@ function initEventListeners() {
     document.getElementById('download-stats-btn').addEventListener('click', downloadStatistics);
     document.getElementById('upload-stats-input').addEventListener('change', uploadStatistics);
     document.getElementById('copy-stats-btn').addEventListener('click', copyStatisticsToClipboard);
+
+    // New: Listeners for the copy stats modal
+    document.getElementById('close-copy-stats-modal').addEventListener('click', () => {
+        document.getElementById('copy-stats-modal').classList.add('hidden');
+    });
+    document.getElementById('copy-stats-chunks-container').addEventListener('click', handleChunkCopy);
 }
 
 // New: Pause test function
@@ -1409,32 +1415,36 @@ function uploadStatistics(event) {
     reader.readAsText(file);
 }
 
-// Helper function to handle the actual copying to clipboard
-async function copyTextToClipboard(text) {
-    try {
-        if (navigator.clipboard && window.isSecureContext) {
-            await navigator.clipboard.writeText(text);
-        } else {
-            // Fallback for older browsers or insecure contexts
-            const textArea = document.createElement("textarea");
-            textArea.value = text;
-            textArea.style.position = "fixed"; // Avoid scrolling to bottom
-            textArea.style.top = "-9999px";
-            textArea.style.left = "-9999px";
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            const successful = document.execCommand('copy');
-            document.body.removeChild(textArea);
-            if (!successful) {
-                throw new Error('Fallback: execCommand was unsuccessful');
-            }
-        }
-    } catch (err) {
-        console.error('Error copying text to clipboard:', err);
-        // Re-throw a user-friendly error
-        throw new Error("No se pudo copiar al portapapeles.");
+// New: Handle copy button clicks inside the copy-stats-modal
+async function handleChunkCopy(event) {
+    const target = event.target;
+    if (!target.classList.contains('copy-chunk-btn')) {
+        return; // Click was not on a copy button
     }
+
+    const chunkTextArea = target.previousElementSibling; // The textarea is right before the button
+    if (!chunkTextArea || chunkTextArea.tagName !== 'TEXTAREA') {
+        console.error("Could not find textarea to copy from.");
+        return;
+    }
+
+    const textToCopy = chunkTextArea.value;
+    const originalButtonText = target.textContent;
+
+    try {
+        await navigator.clipboard.writeText(textToCopy);
+        target.textContent = '¡Copiado!';
+        target.disabled = true;
+    } catch (err) {
+        console.error('Error al copiar texto: ', err);
+        target.textContent = 'Error al copiar';
+    }
+
+    // Reset button text after a few seconds
+    setTimeout(() => {
+        target.textContent = originalButtonText;
+        target.disabled = false;
+    }, 2000);
 }
 
 // New: Copy statistics to clipboard function
@@ -1444,39 +1454,52 @@ async function copyStatisticsToClipboard() {
         return;
     }
 
-    try {
-        const dataStr = JSON.stringify(testsHistory, null, 2);
-        const MAX_CHUNK_SIZE = 10000;
+    const totalChunks = 5;
+    const chunks = splitIntoChunks(testsHistory, totalChunks);
+    const container = document.getElementById('copy-stats-chunks-container');
+    container.innerHTML = '';
 
-        if (dataStr.length <= MAX_CHUNK_SIZE) {
-            // If small enough, copy all at once
-            await copyTextToClipboard(dataStr);
-            alert("Estadísticas copiadas al portapapeles.");
-        } else {
-            // If too large, split into chunks
-            const chunks = [];
-            for (let i = 0; i < dataStr.length; i += MAX_CHUNK_SIZE) {
-                chunks.push(dataStr.substring(i, i + MAX_CHUNK_SIZE));
-            }
-
-            alert(`Los datos son muy grandes y se han dividido en ${chunks.length} partes. Sigue las instrucciones para copiar cada parte.`);
-
-            for (let i = 0; i < chunks.length; i++) {
-                const partNumber = i + 1;
-                // Using a confirm dialog to give user a choice to cancel
-                if (!confirm(`Haz clic en Aceptar para copiar la parte ${partNumber} de ${chunks.length}.`)) {
-                    alert("Operación de copiado cancelada.");
-                    return; // Exit if user cancels
-                }
-                await copyTextToClipboard(chunks[i]);
-                alert(`Parte ${partNumber} copiada al portapapeles.`);
-            }
-
-            alert("Todas las partes han sido copiadas. Ahora puedes pegarlas una tras otra en un editor de texto para unirlas.");
+    let nonEmptyChunkCount = 0;
+    chunks.forEach((chunk) => {
+        if (chunk.length > 0) {
+            nonEmptyChunkCount++;
         }
+    });
 
-    } catch (error) {
-        console.error("Error al copiar estadísticas:", error);
-        alert(`Ocurrió un error al intentar copiar las estadísticas: ${error.message}`);
+    chunks.forEach((chunk, index) => {
+        if (chunk.length === 0) return; // Don't show UI for empty chunks
+
+        const chunkDataStr = JSON.stringify(chunk, null, 2);
+
+        const chunkElement = document.createElement('div');
+        chunkElement.className = 'stats-chunk';
+        chunkElement.innerHTML = `
+            <h4>Parte ${index + 1} de ${totalChunks} (${chunk.length} tests)</h4>
+            <textarea readonly rows="5">${chunkDataStr}</textarea>
+            <button class="btn btn-outline copy-chunk-btn">Copiar Parte ${index + 1}</button>
+        `;
+        container.appendChild(chunkElement);
+    });
+
+    document.getElementById('copy-stats-modal').classList.remove('hidden');
+}
+
+// New: Helper function to split an array into N chunks
+function splitIntoChunks(array, numChunks) {
+    const result = Array.from({ length: numChunks }, () => []);
+    if (array.length === 0) {
+        return result;
     }
+    const chunkSize = Math.ceil(array.length / numChunks);
+
+    let currentChunkIndex = 0;
+    for (let i = 0; i < array.length; i += chunkSize) {
+        const chunk = array.slice(i, i + chunkSize);
+        if (result[currentChunkIndex]) {
+            result[currentChunkIndex] = chunk;
+        }
+        currentChunkIndex++;
+    }
+
+    return result;
 }
