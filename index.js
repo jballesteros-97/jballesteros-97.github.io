@@ -1381,7 +1381,7 @@ function uploadStatistics(event) {
             }
             
             // More specific validation
-            if (loadedData.length > 0 && (!loadedData[0].hasOwnPropery('theme') || !loadedData[0].hasOwnProperty('answers'))) {
+            if (loadedData.length > 0 && (!loadedData[0].hasOwnProperty('theme') || !loadedData[0].hasOwnProperty('answers'))) {
                  throw new Error("El formato del archivo de estadísticas no es compatible.");
             }
 
@@ -1409,6 +1409,34 @@ function uploadStatistics(event) {
     reader.readAsText(file);
 }
 
+// Helper function to handle the actual copying to clipboard
+async function copyTextToClipboard(text) {
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+        } else {
+            // Fallback for older browsers or insecure contexts
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed"; // Avoid scrolling to bottom
+            textArea.style.top = "-9999px";
+            textArea.style.left = "-9999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textArea);
+            if (!successful) {
+                throw new Error('Fallback: execCommand was unsuccessful');
+            }
+        }
+    } catch (err) {
+        console.error('Error copying text to clipboard:', err);
+        // Re-throw a user-friendly error
+        throw new Error("No se pudo copiar al portapapeles.");
+    }
+}
+
 // New: Copy statistics to clipboard function
 async function copyStatisticsToClipboard() {
     if (testsHistory.length === 0) {
@@ -1417,33 +1445,38 @@ async function copyStatisticsToClipboard() {
     }
 
     try {
-        const dataStr = JSON.stringify(testsHistory, null, 2); // Pretty print JSON
+        const dataStr = JSON.stringify(testsHistory, null, 2);
+        const MAX_CHUNK_SIZE = 10000;
 
-        // Use modern clipboard API if available
-        if (navigator.clipboard && window.isSecureContext) {
-            await navigator.clipboard.writeText(dataStr);
+        if (dataStr.length <= MAX_CHUNK_SIZE) {
+            // If small enough, copy all at once
+            await copyTextToClipboard(dataStr);
             alert("Estadísticas copiadas al portapapeles.");
         } else {
-            // Fallback for older browsers or insecure contexts
-            const textArea = document.createElement("textarea");
-            textArea.value = dataStr;
-            textArea.style.position = "fixed";  // Avoid scrolling to bottom
-            textArea.style.top = "-9999px";
-            textArea.style.left = "-9999px";
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            try {
-                document.execCommand('copy');
-                alert("Estadísticas copiadas al portapapeles.");
-            } catch (err) {
-                alert("No se pudo copiar al portapapeles. Por favor, inténtalo manualmente.");
-                console.error('Fallback: No se pudo copiar el texto', err);
+            // If too large, split into chunks
+            const chunks = [];
+            for (let i = 0; i < dataStr.length; i += MAX_CHUNK_SIZE) {
+                chunks.push(dataStr.substring(i, i + MAX_CHUNK_SIZE));
             }
-            document.body.removeChild(textArea);
+
+            alert(`Los datos son muy grandes y se han dividido en ${chunks.length} partes. Sigue las instrucciones para copiar cada parte.`);
+
+            for (let i = 0; i < chunks.length; i++) {
+                const partNumber = i + 1;
+                // Using a confirm dialog to give user a choice to cancel
+                if (!confirm(`Haz clic en Aceptar para copiar la parte ${partNumber} de ${chunks.length}.`)) {
+                    alert("Operación de copiado cancelada.");
+                    return; // Exit if user cancels
+                }
+                await copyTextToClipboard(chunks[i]);
+                alert(`Parte ${partNumber} copiada al portapapeles.`);
+            }
+
+            alert("Todas las partes han sido copiadas. Ahora puedes pegarlas una tras otra en un editor de texto para unirlas.");
         }
+
     } catch (error) {
         console.error("Error al copiar estadísticas:", error);
-        alert("Ocurrió un error al intentar copiar las estadísticas.");
+        alert(`Ocurrió un error al intentar copiar las estadísticas: ${error.message}`);
     }
 }
