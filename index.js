@@ -162,6 +162,7 @@ function initEventListeners() {
     // New: Statistics management
     document.getElementById('download-stats-btn').addEventListener('click', downloadStatistics);
     document.getElementById('upload-stats-input').addEventListener('change', uploadStatistics);
+    document.getElementById('copy-stats-btn').addEventListener('click', copyStatisticsToClipboard);
 }
 
 // New: Pause test function
@@ -1380,7 +1381,7 @@ function uploadStatistics(event) {
             }
             
             // More specific validation
-            if (loadedData.length > 0 && (!loadedData[0].hasOwnProperty('theme') || !loadedData[0].hasOwnProperty('answers'))) {
+            if (loadedData.length > 0 && (!loadedData[0].hasOwnPropery('theme') || !loadedData[0].hasOwnProperty('answers'))) {
                  throw new Error("El formato del archivo de estadísticas no es compatible.");
             }
 
@@ -1406,4 +1407,43 @@ function uploadStatistics(event) {
     };
     
     reader.readAsText(file);
+}
+
+// New: Copy statistics to clipboard function
+async function copyStatisticsToClipboard() {
+    if (testsHistory.length === 0) {
+        alert("No hay estadísticas para copiar.");
+        return;
+    }
+
+    try {
+        const dataStr = JSON.stringify(testsHistory, null, 2); // Pretty print JSON
+
+        // Use modern clipboard API if available
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(dataStr);
+            alert("Estadísticas copiadas al portapapeles.");
+        } else {
+            // Fallback for older browsers or insecure contexts
+            const textArea = document.createElement("textarea");
+            textArea.value = dataStr;
+            textArea.style.position = "fixed";  // Avoid scrolling to bottom
+            textArea.style.top = "-9999px";
+            textArea.style.left = "-9999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                alert("Estadísticas copiadas al portapapeles.");
+            } catch (err) {
+                alert("No se pudo copiar al portapapeles. Por favor, inténtalo manualmente.");
+                console.error('Fallback: No se pudo copiar el texto', err);
+            }
+            document.body.removeChild(textArea);
+        }
+    } catch (error) {
+        console.error("Error al copiar estadísticas:", error);
+        alert("Ocurrió un error al intentar copiar las estadísticas.");
+    }
 }
